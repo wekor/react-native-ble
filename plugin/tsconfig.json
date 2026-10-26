@@ -1,0 +1,26 @@
+{
+  // Mirrors expo-module-scripts/tsconfig.plugin without depending on it.
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "build",
+    "declaration": true,
+    "lib": ["ES2023"],
+    "target": "ES2022",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "moduleDetection": "force",
+    "types": [],
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "noUncheckedIndexedAccess": true,
+    "noUncheckedSideEffectImports": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
+  },
+  "include": ["src"]
+}

@@ -1,0 +1,36 @@
+{
+  "name": "react-native-ble-example",
+  "version": "1.0.0",
+  "main": "expo-router/entry",
+  "dependencies": {
+    "@expo/metro-runtime": "~58.0.15",
+    "expo": "~58.0.19",
+    "expo-constants": "~58.0.13",
+    "expo-file-system": "~58.0.11",
+    "expo-linking": "~58.0.14",
+    "expo-router": "~58.0.26",
+    "expo-status-bar": "~58.0.4",
+    "expo-symbols": "~58.0.4",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-native": "0.88.0",
+    "react-native-ble-plx": "3.5.1",
+    "react-native-safe-area-context": "~5.10.1",
+    "react-native-screens": "~4.30.0",
+    "react-native-web": "~0.21.4"
+  },
+  "scripts": {
+    "start": "expo start --dev-client",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "build:ios": "xcodebuild ONLY_ACTIVE_ARCH=YES -workspace ios/BleExample.xcworkspace -UseNewBuildSystem=YES -scheme BleExample -configuration Debug -sdk iphonesimulator -derivedDataPath ios/build -quiet",
+    "build:android": "cd android && ./gradlew assembleDebug -DtestBuildType=debug -Dorg.gradle.jvmargs=-Xmx4g",
+    "build:web": "expo export --platform web"
+  },
+  "private": true,
+  "devDependencies": {
+    "react-native-builder-bob": "^0.44.1",
+    "react-native-monorepo-config": "^0.4.0"
+  }
+}

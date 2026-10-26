@@ -1,0 +1,561 @@
+/*
+ * The docs theme, modelled on Expo's documentation: Inter, near-black text on white, hairline borders,
+ * rounded cards for every API, and colour used only for links and platform chips.
+ */
+
+:root {
+  --text: #1b1f23;
+  --text-secondary: #60646c;
+  --text-tertiary: #8b8d98;
+  --border: #e3e4e8;
+  --border-strong: #d3d5db;
+  --surface: #ffffff;
+  --surface-subtle: #f8f9fa;
+  --surface-hover: #f1f2f4;
+  --link: #0d74ce;
+  --code-bg: #f8f9fa;
+  --code-border: #e3e4e8;
+
+  --ifm-font-family-base: 'Inter', system-ui, -apple-system, sans-serif;
+  --ifm-heading-font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  --ifm-font-family-monospace: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --ifm-font-size-base: 16px;
+  --ifm-line-height-base: 1.65;
+  --ifm-font-color-base: var(--text);
+  --ifm-heading-color: var(--text);
+  --ifm-heading-font-weight: 600;
+  --ifm-background-color: var(--surface);
+  --ifm-background-surface-color: var(--surface);
+  --ifm-color-primary: var(--link);
+  --ifm-color-primary-dark: #0b67b8;
+  --ifm-color-primary-darker: #0a61ad;
+  --ifm-color-primary-darkest: #08508f;
+  --ifm-color-primary-light: #1a80d8;
+  --ifm-color-primary-lighter: #2a88db;
+  --ifm-color-primary-lightest: #509ee2;
+  --ifm-link-color: var(--link);
+  --ifm-link-hover-decoration: none;
+  --ifm-code-font-size: 0.85em;
+  --ifm-code-background: var(--code-bg);
+  --ifm-code-border-radius: 5px;
+  --ifm-code-padding-horizontal: 0.35em;
+  --ifm-code-padding-vertical: 0.1em;
+  --ifm-toc-border-color: var(--border);
+  --ifm-hr-background-color: var(--border);
+  --ifm-color-emphasis-300: var(--border);
+  --ifm-navbar-height: 60px;
+  --ifm-navbar-shadow: none;
+  --ifm-navbar-background-color: var(--surface);
+  --ifm-menu-color: var(--text-secondary);
+  --ifm-menu-color-active: var(--text);
+  --ifm-menu-color-background-active: var(--surface-hover);
+  --ifm-menu-color-background-hover: var(--surface-subtle);
+  --ifm-table-border-color: var(--border);
+  --ifm-table-head-background: var(--surface-subtle);
+  --ifm-table-stripe-background: transparent;
+  --ifm-pre-background: var(--code-bg);
+  --ifm-pre-padding: 1rem 1.25rem;
+  --ifm-container-width-xl: 1440px;
+  --docusaurus-highlighted-code-line-bg: rgba(13, 116, 206, 0.08);
+}
+
+[data-theme='dark'] {
+  --text: #edeef0;
+  --text-secondary: #b0b4ba;
+  --text-tertiary: #80838d;
+  --border: #2e3035;
+  --border-strong: #3a3d44;
+  --surface: #111113;
+  --surface-subtle: #18191b;
+  --surface-hover: #212225;
+  --link: #70b8ff;
+  --code-bg: #18191b;
+  --code-border: #2e3035;
+
+  --ifm-color-primary: var(--link);
+  --ifm-color-primary-dark: #5aaeff;
+  --ifm-color-primary-darker: #4aa6ff;
+  --ifm-color-primary-darkest: #2b96ff;
+  --ifm-color-primary-light: #86c2ff;
+  --ifm-color-primary-lighter: #9acbff;
+  --ifm-color-primary-lightest: #b9dbff;
+  --docusaurus-highlighted-code-line-bg: rgba(112, 184, 255, 0.12);
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'cv11', 'ss01';
+}
+
+/* ---------- Layout ---------- */
+
+.navbar {
+  border-bottom: 1px solid var(--border);
+}
+
+.navbar__title {
+  font-weight: 600;
+  font-size: 1.05rem;
+  letter-spacing: -0.01em;
+}
+
+.navbar__logo {
+  height: 28px;
+  margin-right: 0.6rem;
+}
+
+.navbar__link {
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.navbar__link:hover {
+  color: var(--text);
+}
+
+.theme-doc-sidebar-container {
+  border-right: 1px solid var(--border) !important;
+}
+
+.menu {
+  padding: 1rem 0.75rem !important;
+  font-size: 0.92rem;
+}
+
+.menu__link {
+  border-radius: 8px;
+  padding: 0.35rem 0.75rem;
+  font-weight: 400;
+}
+
+.menu__link--active:not(.menu__link--sublist) {
+  font-weight: 500;
+}
+
+.menu__list-item-collapsible .menu__link--sublist,
+.menu__caret {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.menu__list .menu__list {
+  margin-top: 0.15rem;
+  padding-left: 0;
+}
+
+.table-of-contents {
+  font-size: 0.85rem;
+}
+
+.table-of-contents__link {
+  color: var(--text-secondary);
+}
+
+.table-of-contents__link--active,
+.table-of-contents__link:hover {
+  color: var(--link);
+}
+
+.footer {
+  --ifm-footer-background-color: var(--surface);
+  border-top: 1px solid var(--border);
+  color: var(--text-tertiary);
+  font-size: 0.85rem;
+}
+
+/* ---------- Typography ---------- */
+
+.markdown {
+  --ifm-h1-font-size: 2.1rem;
+  --ifm-h2-font-size: 1.55rem;
+  --ifm-h3-font-size: 1.2rem;
+  --ifm-heading-vertical-rhythm-top: 2.2;
+  max-width: 800px;
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3 {
+  letter-spacing: -0.02em;
+}
+
+.markdown h1 {
+  font-weight: 700;
+}
+
+.markdown h2 {
+  margin-top: 2.6rem;
+}
+
+.markdown > p,
+.markdown li {
+  color: var(--text);
+}
+
+.markdown :where(p, li, dd, blockquote) {
+  text-wrap: pretty;
+}
+
+.markdown a {
+  text-decoration: none;
+}
+
+.markdown a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Inline code: a hairline pill, as Expo draws types and values. */
+.markdown :not(pre) > code {
+  border: 1px solid var(--code-border);
+  vertical-align: 0.05em;
+  white-space: nowrap;
+  word-break: normal;
+}
+
+.markdown a code {
+  color: var(--link);
+}
+
+/* ---------- Tables ---------- */
+
+.markdown table {
+  display: table;
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  font-size: 0.92rem;
+  margin-bottom: 1.5rem;
+}
+
+.markdown table thead tr {
+  background: var(--surface-subtle);
+  border: none;
+}
+
+.markdown table th {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-align: left;
+  padding: 0.6rem 1rem;
+  border: none;
+  border-bottom: 1px solid var(--border);
+}
+
+.markdown table tr {
+  border: none;
+  background: transparent;
+}
+
+.markdown table td {
+  padding: 0.8rem 1rem;
+  border: none;
+  border-top: 1px solid var(--border);
+  vertical-align: middle;
+  line-height: 1.55;
+}
+
+.markdown table tbody tr:first-child td {
+  border-top: none;
+}
+
+.markdown table th + th,
+.markdown table td + td {
+  border-left: 1px solid var(--border);
+}
+
+/* The first column names a parameter or property: plain text, as Expo shows it. */
+.markdown table td:first-child > code:only-child,
+.markdown table td:first-child > code:first-child {
+  border: none;
+  background: none;
+  padding: 0;
+  font-family: var(--ifm-font-family-base);
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.optional {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+}
+
+/* ---------- Code blocks ---------- */
+
+.theme-code-block {
+  border: 1px solid var(--code-border);
+  border-radius: 12px !important;
+  box-shadow: none !important;
+  overflow: hidden;
+}
+
+.theme-code-block pre {
+  border-radius: 0 !important;
+}
+
+.theme-code-block [class*='codeBlockTitle'] {
+  background: var(--surface);
+  border-bottom: 1px solid var(--code-border) !important;
+  font-size: 0.85rem;
+  font-weight: 500;
+  font-family: var(--ifm-font-family-base);
+  padding: 0.6rem 1rem;
+}
+
+.theme-code-block code {
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+/* ---------- Admonitions ---------- */
+
+.theme-admonition {
+  border: 1px solid var(--border);
+  border-left-width: 1px;
+  border-radius: 12px;
+  background: var(--surface-subtle);
+  box-shadow: none;
+  padding: 0.85rem 1rem;
+  font-size: 0.95rem;
+}
+
+.theme-admonition [class*='admonitionHeading'] {
+  font-size: 0.85rem;
+  text-transform: none;
+  letter-spacing: 0;
+  margin-bottom: 0.3rem;
+}
+
+/* ---------- Platform chips ---------- */
+
+.platforms {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 0.45rem;
+}
+
+.platforms-label {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.platform {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  line-height: 1.5;
+  padding: 1px 9px 1px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.platform-ios {
+  color: #1d3557;
+  background: #e6effa;
+}
+
+.platform-android {
+  color: #1f4d2e;
+  background: #e3f3e8;
+}
+
+[data-theme='dark'] .platform-ios {
+  color: #cfe2f8;
+  background: #1b2a3d;
+}
+
+[data-theme='dark'] .platform-android {
+  color: #cdeed8;
+  background: #1a3324;
+}
+
+/* ---------- API boxes ---------- */
+
+.api-box {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  margin: 0 0 1.25rem;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.api-box__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 0.85rem 1.1rem 0.35rem;
+}
+
+.api-box__header h3 {
+  margin: 0;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  word-break: break-word;
+}
+
+.api-box__header .platforms {
+  margin: 0;
+}
+
+.api-box__body {
+  padding: 0.25rem 1.1rem 0.9rem;
+  font-size: 0.95rem;
+}
+
+.api-box__body > :last-child {
+  margin-bottom: 0;
+}
+
+.api-box__body > p {
+  margin-bottom: 0.75rem;
+}
+
+/* A table inside a box runs edge to edge, like Expo's parameter tables. */
+.api-box__body > table {
+  width: calc(100% + 2.2rem);
+  margin: 0.5rem -1.1rem 0.9rem;
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+}
+
+.api-box__body > table:last-child {
+  margin-bottom: -0.9rem;
+  border-bottom: none;
+}
+
+.api-box__body .theme-code-block {
+  margin-bottom: 0.25rem;
+}
+
+.api-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.5rem;
+  margin: 0.5rem 0 0.75rem;
+  font-size: 0.92rem;
+}
+
+.api-meta__label {
+  color: var(--text-secondary);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.api-meta__label::before {
+  content: '↳';
+  margin-right: 0.4rem;
+  color: var(--text-tertiary);
+}
+
+.api-meta__value {
+  flex: 1;
+  min-width: 12rem;
+}
+
+/* ---------- Library header ---------- */
+
+.library-header {
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.library-header__title {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.library-header__title h1 {
+  margin: 0;
+}
+
+.library-header__icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  flex: none;
+}
+
+.library-header__description {
+  margin: 0.75rem 0 1rem;
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.library-header__description > p {
+  margin: 0;
+}
+
+.library-header__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  margin-top: 1rem;
+  font-size: 0.88rem;
+}
+
+.library-header__links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-secondary);
+}
+
+.library-header__links a:hover {
+  color: var(--text);
+  text-decoration: none;
+}
+
+/* ---------- Page footer ---------- */
+
+.theme-edit-this-page {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.pagination-nav__link {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.85rem 1.1rem;
+  transition: border-color 0.15s;
+}
+
+.pagination-nav__link:hover {
+  border-color: var(--border-strong);
+}
+
+.pagination-nav__sublabel {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.pagination-nav__label {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.pagination-nav__link--prev .pagination-nav__label::before,
+.pagination-nav__link--next .pagination-nav__label::after {
+  content: none;
+}

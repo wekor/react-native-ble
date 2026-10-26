@@ -1,0 +1,66 @@
+---
+title: Background
+---
+
+# Background
+
+The API is the same in the background; each platform decides how much keeps
+working.
+
+### Android
+
+Bluetooth keeps working while the app process runs, until the system reclaims
+it.
+
+| | |
+| --- | --- |
+| Scanning | Continues, at a lower rate with `android.scanMode: 'auto'`. Give the scan `services`, or `filters` without `namePrefix`, which never reaches the chip: Android stops unfiltered scans while the screen is off. |
+| Connections | Stay up. `connect({ timeout: 0, android: { autoConnect: true } })` waits for the device without a time limit. |
+| Long scans | Android demotes a scan running past 30 minutes; the library restarts it within the scan-start limit. |
+| Process death | The system may end the process; keeping it alive, for example with a foreground service, is up to the app. |
+
+### iOS
+
+Enable the `bluetooth-central` background mode with `backgroundCentral: true` in the
+[config plugin](./installation.mdx#configurable-properties).
+
+| | |
+| --- | --- |
+| Scanning | Continues only with `services`. iOS lowers the scan rate and stops repeating advertisements, so `allowDuplicates` has no effect and `onLost` can take tens of seconds. |
+| Connections | Stay up, and notifications wake the app. A `connect()` with `timeout: 0` stays pending until the device appears. |
+| System alerts | `ios.notifyOnConnection`, `notifyOnDisconnection` and `notifyOnNotification` in [`ConnectOptions`](./api.mdx#connectoptions) show alerts while the app is suspended. |
+| Termination | When iOS ends the app for memory, state restoration brings back its connections and scan; see below. |
+
+#### State restoration
+
+With state restoration, iOS keeps the app's connections and pending scan when it
+terminates the app in the background, and relaunches it when one has an event.
+Call [`configure()`](./api.mdx#configure) with the same `restoreIdentifier` early
+on every launch, before any other Bluetooth call:
+
+```ts
+import { configure, startScan } from '@wekor/react-native-ble';
+
+configure({
+  ios: {
+    restoreIdentifier: 'main',
+    onRestore: ({ connected, connecting, scan }) => {
+      for (const device of connected) device.subscribe('2a37', onHeartRate);
+      for (const device of connecting) {
+        device.connect().then(() => device.subscribe('2a37', onHeartRate));
+      }
+      if (scan) startScan({ services: scan.services, onFound });
+    },
+  },
+});
+```
+
+`onRestore` receives a [`RestoredState`](./api.mdx#restoredstate) once, before
+any other Bluetooth event of that launch:
+
+- `connected` devices have services discovered, but are not subscribed;
+  subscribe again.
+- `connecting` devices had a `connect()` pending when iOS ended the app. The
+  library runs `connect({ timeout: 0 })` again, which resolves when the device
+  comes into range; `device.connect()` returns that same promise.
+- `scan` has been stopped; start a new one to keep scanning.

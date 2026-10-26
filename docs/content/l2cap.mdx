@@ -1,0 +1,41 @@
+---
+title: L2CAP channels
+---
+
+# L2CAP channels
+
+<Platforms android="10+ (API 29)" ios="11+" />
+
+An L2CAP connection-oriented channel is a byte stream alongside GATT: writes of
+any length, flow control, and no per-packet attribute overhead. It moves large
+transfers, such as firmware or files, at less CPU than notifications and
+characteristic writes ([measured](./comparison.mdx#l2cap)); the link, not the
+channel, sets the speed. The device must listen on a PSM it makes known, usually
+through a characteristic.
+
+```ts
+const psm = new DataView((await device.read('abcd')).buffer).getUint16(0, true);
+const channel = await device.openL2capChannel(psm);
+
+channel.onData((chunk) => received.push(chunk));
+await channel.write(firmware);
+await channel.close();
+```
+
+- `write()` takes a value of any length, sends writes in call order, and
+  resolves when the system has taken all of it.
+- `onData()` delivers bytes in order, but chunk boundaries are the transport's,
+  not the sender's: frame your messages.
+- Bytes that arrive before the first `onData()` listener are kept for it, so
+  nothing is lost between opening and listening.
+- The channel closes when the device disconnects; `onClose()` reports it.
+
+See [`openL2capChannel()`](./api.mdx#deviceopenl2capchannel) and
+[`L2capChannel`](./api.mdx#l2capchannel).
+
+## Platform differences
+
+| | Android | iOS |
+| --- | --- | --- |
+| Availability | Android 10 (API 29) and later; earlier versions reject with `'unsupported'`. | iOS 11 and later. |
+| Security | `android.secure: true`, the default, requires an encrypted, authenticated link and may trigger pairing; `false` opens an unencrypted channel. | Decided by the device's PSM settings; `android.secure` has no effect. |

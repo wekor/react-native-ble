@@ -1,0 +1,125 @@
+---
+title: Installation
+---
+
+# Installation
+
+## Requirements
+
+| | Android | iOS |
+| --- | --- | --- |
+| Minimum OS | Android 7.0 (API 24) | iOS 15.1 |
+| React Native | 0.80 or later, New Architecture | 0.80 or later, New Architecture |
+| Bluetooth | Bluetooth LE hardware | Bluetooth LE hardware; simulators have none |
+
+## Install the package
+
+```sh
+npx expo install @wekor/react-native-ble
+```
+
+In a bare React Native project, install it with your package manager, then run
+`pod install` in `ios/`.
+
+## Configuration in app config
+
+In an Expo project, add the config plugin to `app.json` or `app.config.ts` and
+run `npx expo prebuild`:
+
+```json
+{
+  "expo": {
+    "plugins": [
+      [
+        "@wekor/react-native-ble",
+        {
+          "bluetoothPermission": "Allow $(PRODUCT_NAME) to connect to your heart rate monitor.",
+          "backgroundCentral": false,
+          "neverForLocation": true
+        }
+      ]
+    ]
+  }
+}
+```
+
+In `app.config.ts`, type the options with `BlePluginProps`:
+
+```ts
+import type { ExpoConfig } from 'expo/config';
+import type { BlePluginProps } from '@wekor/react-native-ble/plugin';
+
+export default {
+  name: 'my-app',
+  slug: 'my-app',
+  plugins: [
+    [
+      '@wekor/react-native-ble',
+      { backgroundCentral: true } satisfies BlePluginProps,
+    ],
+  ],
+} satisfies ExpoConfig;
+```
+
+After changing the options, run `npx expo prebuild` again; the plugin updates
+existing entries instead of duplicating them, so `--clean` is not needed.
+
+### Configurable properties
+
+| Name | Default | Description |
+| --- | --- | --- |
+| `bluetoothPermission` | `'Allow $(PRODUCT_NAME) to use Bluetooth'` | <Platforms ios /> The permission prompt text, written to `NSBluetoothAlwaysUsageDescription`; `false` leaves the key as it is. |
+| `backgroundCentral` | `false` | <Platforms ios /> Adds `bluetooth-central` to `UIBackgroundModes` to scan and stay connected in the background; see [Background](./background.mdx). |
+| `neverForLocation` | `true` | <Platforms android /> Declares `BLUETOOTH_SCAN` with `usesPermissionFlags="neverForLocation"`, so Android 12+ scans without location permission but filters some beacons out; set `false` if the app derives location from scan results. |
+
+On Android the plugin always declares `BLUETOOTH_SCAN` and `BLUETOOTH_CONNECT`
+(Android 12+), and `BLUETOOTH`, `BLUETOOTH_ADMIN` and `ACCESS_FINE_LOCATION`
+with `maxSdkVersion="30"` (Android 11 and earlier). It leaves an
+`ACCESS_FINE_LOCATION` the app declares itself as it is, and with
+`neverForLocation: false` declares it for every version.
+
+## Manual configuration
+
+Without Expo, add the same entries yourself.
+
+### Android
+
+In `android/app/src/main/AndroidManifest.xml`:
+
+```xml
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+          xmlns:tools="http://schemas.android.com/tools">
+  <!-- Android 12 and later -->
+  <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
+                   android:usesPermissionFlags="neverForLocation"
+                   tools:targetApi="s" />
+  <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
+  <!-- Android 11 and earlier -->
+  <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+  <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+  <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />
+</manifest>
+```
+
+Remove `usesPermissionFlags` if the app derives location from scan results; it
+then also needs `ACCESS_FINE_LOCATION` on Android 12 and later.
+
+### iOS
+
+In `ios/<App>/Info.plist`:
+
+```xml
+<key>NSBluetoothAlwaysUsageDescription</key>
+<string>Allow this app to connect to your heart rate monitor.</string>
+
+<!-- Only to scan and stay connected in the background -->
+<key>UIBackgroundModes</key>
+<array>
+  <string>bluetooth-central</string>
+</array>
+```
+
+Without `NSBluetoothAlwaysUsageDescription` iOS would terminate the app on its
+first Bluetooth use; the library instead fails with `'unauthorized'` and logs
+the missing key.

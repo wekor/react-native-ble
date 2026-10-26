@@ -1,0 +1,94 @@
+---
+title: Comparison
+---
+
+# Comparison details
+
+The numbers behind the [comparison with react-native-ble-plx](./overview.mdx#why-this-library),
+how they were measured, their limits, and how to run them yourself.
+
+| Test | @wekor/react-native-ble | react-native-ble-plx |
+| --- | --- | --- |
+| CPU time (usage), 1000 notifications | iOS 391 ms (1.5%) · Android 1.6 s (12%) | iOS 1331 ms (4.7%) · Android 4.7 s (35%) |
+| CPU time (usage), 200 writes with response | iOS 155 ms (1.0%) · Android 0.49 s (5.9%) | iOS 413 ms (2.9%) · Android 1.46 s (14%) |
+| CPU time (usage), 2000 writes without response (Android) | 2.4 s (9.1%) | 5.4 s (19%) |
+| CPU time (usage), scanning nearby devices for 20 s | iOS 86–92 ms (0.4%) · Android 2.6 s (13%) | iOS 242–260 ms (1.3%) · Android 4.6 s (23%) |
+| Writes without response that arrive (iOS, 2000 sent) | 2000 | 92 |
+| 50 reads at once (iOS) | Each gets its own value | All get the same value |
+| Spurious errors from 100 unsubscribes | 0 | iOS 100 · Android 205 |
+| Disconnecting with 30 operations queued | Each rejects with `'disconnected'` | Native error codes (iOS 201, Android 205); on Android `disconnect()` rejects too |
+| Connecting while a disconnect runs (Android) | Connects | Fails |
+| Reading the Bluetooth state | 1.2 µs, synchronous | iOS 20 µs · Android 144 µs, asynchronous |
+| Throughput, connecting, reading | Same | Same |
+
+## Features
+
+| | @wekor/react-native-ble | react-native-ble-plx |
+| --- | --- | --- |
+| Bytes | `Uint8Array` | base64 strings |
+| Bluetooth permission | ✓ | ✗ |
+| Device appears or leaves | ✓ | ✗ |
+| Bonding (Android) | ✓ | ✗ |
+| L2CAP channels | ✓ | ✗ |
+| Several scans at once | ✓ | ✗ (a second scan replaces the first) |
+
+## L2CAP
+
+This library only, since react-native-ble-plx has no L2CAP: 1 MiB each way over
+an L2CAP channel, next to GATT on the same connection. CPU time per MiB, over
+two runs:
+
+| | iOS | Android (Samsung) |
+| --- | --- | --- |
+| In, L2CAP | 510–530 ms | 1.43–1.56 s |
+| In, 512-byte notifications | 820–970 ms | 2.1–2.3 s |
+| Out, L2CAP, one write | 330–340 ms | 1.25–1.26 s |
+| Out, L2CAP, 4 KB writes | 390–410 ms | 1.27–1.29 s |
+| Out, 512-byte writes without response | 1.08–1.12 s | 1.94–2.07 s |
+
+Both reached the same throughput, about 18 KB/s on iOS and 37 KB/s on Android.
+With a Mac as the peripheral, its link limits both, so these runs show what each
+costs, not which is faster. Unlike the table above, the Android figures include
+the idle app's CPU time (under 3%).
+
+## How it was measured
+
+- Release builds of the example app with react-native-ble-plx 3.5.1 installed
+  alongside, the two run alternately against the same device.
+- An iPhone 15 Plus (iOS) and a Xiaomi Redmi Turbo 3 (Android 15, HyperOS 2).
+  A Samsung Galaxy S25 Ultra (Android 16, One UI 8.5) gave the same throughput
+  with both libraries and less CPU time with this one in every test.
+- Whichever library runs first after the app starts can be slower on some
+  phones (24 s instead of 15 s for 1000 notifications on the Samsung), so every
+  comparison runs twice, each library going first once.
+- Every connected test against a Mac running the example's test peripheral, with
+  512-byte packets; scanning among about 100 nearby devices.
+- CPU time is the app process's own per step (`getrusage` on iOS,
+  `Process.getElapsedCpuTime()` on Android, checked against `/proc/<pid>/stat`).
+  On Android it is less the idle app's (about 5%); on iOS the idle app uses
+  under 1%, too little to subtract reliably. Usage is that time over the step's
+  duration, as a share of one core.
+- react-native-ble-plx was set up comparably: it waits for Bluetooth to be on
+  and, on Android, requests the same MTU (517), connection priority and scan
+  mode (low latency).
+
+## Disclaimer
+
+These are measurements from one setup on 28 October 2026, mostly one or two
+runs each. Other phones, OS versions, peripherals and radio conditions give
+other numbers, and Bluetooth timing varies between runs. The
+react-native-ble-plx behaviour is what version 3.5.1 did in these tests; later
+versions may differ. This library is not affiliated with react-native-ble-plx.
+Run the comparison on your own devices before relying on it.
+
+## Run it yourself
+
+Start the test peripheral on a Mac with `example/scripts/test-peripheral.sh`,
+then, in the example app:
+
+- The **Performance** tab runs each comparison and shows a table, CPU included.
+- Release builds: open `bleexample://bench?kind=scanning` (or `bridge`,
+  `throughput`, `latency`, `l2cap`, `compare`); the result also goes to `Documents/bench-result.json`
+  on iOS and to the log on Android.
+- Debug builds, from a computer:
+  `node example/scripts/cdp.mjs -e "return await compare.throughput()"`.

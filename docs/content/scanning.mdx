@@ -1,0 +1,104 @@
+---
+title: Scanning
+---
+
+# Scanning
+
+[`startScan()`](./api.mdx#startscan) reports nearby advertising
+peripherals and returns the function that stops it.
+
+```ts
+import { startScan } from '@wekor/react-native-ble';
+
+const stop = startScan({
+  services: ['180d'],
+  onFound: ({ device, rssi }) => console.log(device.id, device.name, rssi),
+  onError: (error) => console.warn('scan stopped', error.code),
+});
+
+// Later:
+stop();
+```
+
+Each result is a [`ScanResult`](./api.mdx#scanresult): the
+[`Device`](./api.mdx#device) to connect to, plus what the advertisement carried.
+
+## Filter by service
+
+Pass the services your peripheral advertises in `services`; both platforms
+filter on them in the system and need them for background scanning.
+
+```ts
+startScan({ services: ['180d', '180f'], onFound });
+```
+
+## Filter further
+
+`filters` adds conditions on the name, manufacturer data and service data; a
+result must match `services` and at least one filter:
+
+```ts
+startScan({
+  services: ['180d'],
+  filters: [
+    { namePrefix: 'HRM-' },
+    { manufacturerData: { companyId: 0x0059, data: new Uint8Array([0x01]) } },
+  ],
+  onFound,
+});
+```
+
+Filters run in the library's shared C++, so the same advertisement matches
+identically on both platforms. See [`ScanFilter`](./api.mdx#scanfilter).
+
+## Follow a device's signal
+
+By default `onFound` reports each device once per scan; `allowDuplicates`
+reports every advertisement, to follow changing RSSI or advertisement data:
+
+```ts
+startScan({ services: ['180d'], allowDuplicates: true, onFound });
+```
+
+## Detect presence
+
+Add `onLost` to learn when a device leaves: it fires once nothing was heard from
+the device for `lostAfter` ms (default 10 s), and `onFound` reports the device
+again when it returns. `minRssi` sets the signal strength that counts, for both.
+`onLost` gets only the `Device`, since leaving carries no advertisement.
+
+```ts
+startScan({
+  services: ['180d'],
+  minRssi: -70,
+  lostAfter: 5_000,
+  onFound: ({ device }) => console.log('near', device.id),
+  onLost: (device) => console.log('gone', device.id),
+});
+```
+
+Presence needs every advertisement, so on iOS a scan with `onLost` makes the
+system report duplicates, which costs more than a scan without it.
+
+Presence is tracked in shared C++, independent of chip features some Android
+phones lack.
+
+## Several scans at once
+
+Scans started from different screens run side by side on one native scan, and
+each gets only the results matching its own options. A scan that starts later
+still hears every nearby device: on iOS the native scan starts over for it, a
+brief pause the other scans don't see as repeated results.
+
+## Platform differences
+
+| | Android | iOS |
+| --- | --- | --- |
+| Scan settings | `android` sets `scanMode`, `reportDelay`, `legacy` and `phy`; presence comes from `onLost`, not the chip's match settings. See [`ScanOptionsAndroid`](./api.mdx#scanoptionsandroid). | `ios.solicitedServices` also reports devices soliciting these services. See [`ScanOptionsIos`](./api.mdx#scanoptionsios). |
+| Scan frequency | `android.scanMode: 'auto'`, the default, listens at full rate in the foreground and at low power in the background. | Chosen by the system: full rate in the foreground, much lower in the background. |
+| System filtering | The Bluetooth chip applies `services` and `filters` without waking the CPU, except `namePrefix`, which never reaches it: while any scan without `services` has a `namePrefix` filter or no filters, the chip filters nothing. | The system applies `services`; the library applies `filters`. |
+| Throttling | Android allows 5 scan starts per 30 seconds; the library batches restarts and delays one that would exceed it, so results pause briefly instead of failing; stopping never waits. Only a start Android refuses anyway reports `'scan-throttled'`. | No limit. |
+| Background | Continues; scans the chip does not filter stop while the screen is off. See [Background](./background.mdx). | Requires `services` and the `bluetooth-central` background mode; without duplicates, `onLost` can take tens of seconds. See [Background](./background.mdx). |
+| Extra result fields | `result.android`: raw `scanRecord`, PHYs, advertising set id, timestamp. | `result.ios`: overflow and solicited service UUIDs. iOS does not expose the raw advertisement bytes. |
+| Device ids | The MAC address. | A UUID per phone; iOS never exposes the MAC address. |
+| Apple devices | Reported like any other device, with their manufacturer data. | iOS withholds Apple's advertisements (company id `0x004c`, including iBeacon), so a filter on that id matches nothing. |

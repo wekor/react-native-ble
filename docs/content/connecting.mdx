@@ -1,0 +1,113 @@
+---
+title: Connecting
+---
+
+# Connecting
+
+Get a [`Device`](./api.mdx#device) from a scan result or by id with
+[`getDevice()`](./api.mdx#getdevice), then connect:
+
+```ts
+await device.connect();
+console.log(device.mtu, device.services.length);
+
+await device.disconnect();
+```
+
+[`connect()`](./api.mdx#deviceconnect) resolves once the device is
+connected, its MTU negotiated and its services, characteristics and descriptors
+discovered; there is no separate discovery step.
+
+## Reconnect to a known device
+
+Store the id to get the device back later without scanning; the same id gives
+the same `Device` while the app holds it or it has a connection or listeners:
+
+```ts
+import { getDevice } from '@wekor/react-native-ble';
+
+const device = getDevice(savedId);
+await device.connect({ timeout: 5_000 });
+```
+
+When iOS no longer knows the device, `connect()` rejects with `'not-found'`;
+scan for it again. Android scans for it first; see
+[Platform differences](#platform-differences).
+
+On Android, `connect()` sometimes rejects with `'connection-failed'` and
+`nativeCode` 133, the stack's generic failure, most often right after a
+disconnect. The library does not retry on its own; retry once yourself.
+
+## Cancel a connection attempt
+
+`disconnect()` during a pending `connect()` makes it reject with
+`'cancelled'`; a later `connect()` starts a new attempt:
+
+```ts
+const attempt = device.connect();
+
+await device.disconnect(); // `attempt` rejects with 'cancelled'.
+```
+
+## Several devices
+
+Each device has its own connection and its own operation queue, so connect as
+many as the phone allows and use them at the same time; one device's operations
+never wait for another's:
+
+```ts
+await Promise.all([heartRate.connect(), scale.connect()]);
+```
+
+## Inspect services
+
+[`device.services`](./api.mdx#device-properties) lists the services,
+characteristics and descriptors, with each characteristic's properties:
+
+```ts
+for (const service of device.services) {
+  for (const characteristic of service.characteristics) {
+    console.log(service.uuid, characteristic.uuid, characteristic.properties);
+  }
+}
+```
+
+## When the device changes its services
+
+When a connected device changes its services, typically after a firmware
+update, and sends a Service Changed indication (iOS; Android 12+ once bonded,
+since Android subscribes to it only when pairing completes), the library
+rediscovers them and updates `device.services`. Each subscription is enabled
+again on its characteristic; one whose characteristic is gone ends with
+`onError` `'not-found'`. Rediscovery uses the default operation timeout; if it
+fails, subscriptions end with `onError` and the reason, and `device.services`
+stays empty while the connection stays up. On Android, an operation still
+waiting for the device's answer when the indication arrives fails with
+`'gatt'` and `nativeCode` 133, since Android drops it to rediscover; retry it
+once `device.services` has the new services.
+
+After a failed rediscovery, on older Android versions, with a device not bonded
+on Android, or with a device that sends no indication, call
+[`device.android.refreshCache()`](./api.mdx#deviceandroidrefreshcache) or
+reconnect.
+
+## After a disconnect
+
+- Pending operations reject with `'disconnected'`.
+- Subscriptions end; subscribe again after reconnecting.
+- `device.services` empties and `device.mtu` returns to 23.
+- Nothing reconnects on its own; call `connect()` again, for example from
+  [`onDisconnect`](./api.mdx#deviceondisconnect).
+
+## Platform differences
+
+| | Android | iOS |
+| --- | --- | --- |
+| Device id | The MAC address, such as `'AA:BB:CC:DD:EE:FF'`. | A UUID the system assigns per phone: stable for that phone and device, different on other phones. |
+| Connecting by a saved id | Android must have seen a random-address device since Bluetooth last turned on; when it has not (after a restart, or with no scan yet) and the device is not bonded, `connect()` scans for it first, within the same `timeout`. | Works with any id the system still knows. |
+| MTU | Requested after connecting: 517 by default, set with `android.mtu`; a refused request keeps 23 without error. | Negotiated by the system; `device.mtu` reports the result. |
+| Connection interval | `android.priority` requests one after connecting; [`device.android.requestPriority()`](./api.mdx#deviceandroidrequestpriority) changes it later. | Chosen by the system. |
+| Background connect | `android.autoConnect: true` lets the system connect whenever the device appears, without a time limit; pass `timeout: 0`. | A `connect()` with `timeout: 0` stays pending until the device appears, also in the background. |
+| `services` option | Android always discovers every service; the library keeps only those asked for. | Limits discovery to these services, which is faster on devices with many. |
+| Bonding | [`device.android.bond()`](./api.mdx#deviceandroidbond) and `unbond()`; most phones also pair on their own when a characteristic needs encryption. | Done by the system when a characteristic needs encryption; there is no API for it. |
+| More | `transport` and `phy` options, bonding, PHY and GATT cache control: see [Device, Android](./api.mdx#device-android). | System alerts, transport bridging, ANCS and start delay options: see [`ConnectOptions`](./api.mdx#connectoptions). |

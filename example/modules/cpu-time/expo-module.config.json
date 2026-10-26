@@ -1,0 +1,5 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": { "modules": ["CpuTimeModule"] },
+  "android": { "modules": ["expo.modules.cputime.CpuTimeModule"] }
+}

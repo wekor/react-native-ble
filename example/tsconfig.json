@@ -1,0 +1,12 @@
+{
+  "extends": "../tsconfig",
+  "compilerOptions": {
+    // Web globals React Native provides (performance, URLSearchParams, atob, btoa) are typed by the DOM lib.
+    "lib": ["ESNext", "DOM"],
+    "paths": {
+      "@/*": ["./src/*"],
+      "@wekor/react-native-ble": ["../src/index"]
+    }
+  },
+  "exclude": ["node_modules", "ios", "android"]
+}

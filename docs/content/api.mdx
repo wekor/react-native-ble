@@ -1,0 +1,927 @@
+---
+title: API reference
+toc_max_heading_level: 2
+---
+
+# API reference
+
+```ts
+import {
+  android,
+  BleError,
+  configure,
+  getBluetoothState,
+  getDevice,
+  getPermission,
+  ios,
+  isBleError,
+  onBluetoothStateChange,
+  requestPermission,
+  startScan,
+  useBluetoothPermission,
+  useBluetoothState,
+} from '@wekor/react-native-ble';
+```
+
+`android` and `ios` hold platform-only functions and are `undefined` on the
+other platform; each `Device` likewise has `device.android` and `device.ios`.
+
+## Contents
+
+### Permissions
+
+| API | Description |
+| --- | --- |
+| [`getPermission()`](#getpermission) | Reads the Bluetooth permission without prompting. |
+| [`requestPermission()`](#requestpermission) | Prompts for the Bluetooth permission. |
+| [`useBluetoothPermission()`](#usebluetoothpermission) | The permission as React state. |
+| [`getBluetoothState()`](#getbluetoothstate) | Whether Bluetooth is on. |
+| [`android.requestEnable()`](#androidrequestenable) | <Platforms android /> Asks the user to turn Bluetooth on. |
+
+### Scanning
+
+| API | Description |
+| --- | --- |
+| [`startScan()`](#startscan) | Scans for peripherals; returns `stop`. |
+| [`getDevice()`](#getdevice) | A device by id, without scanning. |
+| [`android.getBondedDevices()`](#androidgetbondeddevices) | <Platforms android /> Devices bonded with the phone. |
+| [`android.getConnectedDevices()`](#androidgetconnecteddevices) | <Platforms android /> LE devices connected by any app. |
+| [`ios.getConnectedDevices()`](#iosgetconnecteddevices) | <Platforms ios /> Devices connected by any app that offer given services. |
+
+### Connecting
+
+| API | Description |
+| --- | --- |
+| [`device.connect()`](#deviceconnect) | Connects, negotiates the MTU and discovers services. |
+| [`device.disconnect()`](#devicedisconnect) | Disconnects, or cancels a pending connect. |
+| [`device` properties](#device-properties) | `id`, `name`, `state`, `mtu`, `services`. |
+| [`device.android.*`](#device-android) | <Platforms android /> MTU, connection priority, PHY, bonding, GATT cache. |
+| [`device.ios.ancsAuthorized`](#deviceiosancsauthorized) | <Platforms ios /> Apple Notification Center Service authorization. |
+
+### Reading and writing
+
+| API | Description |
+| --- | --- |
+| [`device.read()`](#deviceread) | Reads a characteristic. |
+| [`device.write()`](#devicewrite) | Writes a characteristic. |
+| [`device.readDescriptor()`](#devicereaddescriptor) | Reads a descriptor. |
+| [`device.writeDescriptor()`](#devicewritedescriptor) | Writes a descriptor. |
+| [`device.maxWriteLength()`](#devicemaxwritelength) | The largest value one write can carry. |
+| [`device.readRssi()`](#devicereadrssi) | Signal strength of the connection. |
+| [`device.openL2capChannel()`](#deviceopenl2capchannel) | <Platforms android="10+" ios="11+" /> A byte stream alongside GATT. |
+
+### Listening
+
+| API | Description |
+| --- | --- |
+| [`device.subscribe()`](#devicesubscribe) | Notifications or indications of a characteristic. |
+| [`device.onDisconnect()`](#deviceondisconnect) | The end of each connection. |
+| [`device.onStateChange()`](#deviceonstatechange) | Every connection state change. |
+| [`onBluetoothStateChange()`](#onbluetoothstatechange) | Every Bluetooth state change. |
+| [`useBluetoothState()`](#usebluetoothstate) | The Bluetooth state as React state. |
+
+### Configuration and errors
+
+| API | Description |
+| --- | --- |
+| [`configure()`](#configure) | Default timeouts, logging and iOS manager options. |
+| [`BleError`](#bleerror) | The error every failure carries. |
+| [`isBleError()`](#isbleerror) | Narrows an unknown error to `BleError`. |
+
+## Permissions
+
+<ApiBox id="getpermission" name="getPermission()" android ios>
+
+Reads the Bluetooth permission without prompting or, on iOS, creating the
+Bluetooth manager.
+
+<Returns>`Promise<PermissionResponse>`. See [`PermissionResponse`](#permissionresponse).</Returns>
+
+```ts
+const { granted } = await getPermission();
+```
+
+</ApiBox>
+
+<ApiBox id="requestpermission" name="requestPermission()" android ios>
+
+Shows the system prompt when the user can still be asked and resolves with the
+answer; when `canAskAgain` is `false`, it resolves at once with the current
+response. When it resolves, [`getBluetoothState()`](#getbluetoothstate) already
+reflects the answer.
+
+<Returns>`Promise<PermissionResponse>`</Returns>
+
+**Requests**
+
+| Platform | Permission |
+| --- | --- |
+| Android 12 and later | `BLUETOOTH_SCAN` and `BLUETOOTH_CONNECT` |
+| Android 11 and earlier | `ACCESS_FINE_LOCATION` |
+| iOS | Bluetooth authorization, prompting with `NSBluetoothAlwaysUsageDescription` |
+
+```ts
+const { granted, canAskAgain } = await requestPermission();
+if (!granted && !canAskAgain) Linking.openSettings();
+```
+
+</ApiBox>
+
+<ApiBox id="usebluetoothpermission" name="useBluetoothPermission(options)" android ios>
+
+The permission as React state, shaped like Expo's permission hooks.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `options`<Optional /> | `{ get?: boolean; request?: boolean }` | `get` (default `true`) reads the permission on mount. `request` (default `false`) requests it on mount instead. |
+
+<Returns>`[PermissionResponse | null, request, get]`. The response is `null` until it has been read; `request` and `get` return `Promise<PermissionResponse>` and update the state.</Returns>
+
+```tsx
+const [permission, requestPermission] = useBluetoothPermission();
+```
+
+</ApiBox>
+
+<ApiBox id="getbluetoothstate" name="getBluetoothState()" android ios>
+
+The Bluetooth state, synchronously: `'unauthorized'` until permission is
+granted, and briefly `'unknown'` after launch.
+
+<Returns>[`BluetoothState`](#bluetoothstate)</Returns>
+
+</ApiBox>
+
+<ApiBox id="androidrequestenable" name="android.requestEnable()" android>
+
+Shows the system dialog asking the user to turn Bluetooth on; needs
+`BLUETOOTH_CONNECT`.
+
+<Returns>`Promise<boolean>`: `true` when the user turned Bluetooth on.</Returns>
+
+```ts
+if (getBluetoothState() === 'off') await android?.requestEnable();
+```
+
+</ApiBox>
+
+## Scanning
+
+<ApiBox id="startscan" name="startScan(options)" android ios>
+
+Starts a scan and returns the function that stops it. The scan runs until
+`stop` is called, or until Bluetooth turns off or the system fails it, which
+call `onError`. Several scans may run at once.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `options` | [`ScanOptions`](#scanoptions) | Filters, callbacks and platform settings. |
+
+<Returns>`() => void`, which stops the scan. Calling it more than once is harmless.</Returns>
+
+<Errors>through `onError`: `'unauthorized'`, `'bluetooth-off'`, `'scan-throttled'` (Android, only when Android refuses a start the library already delayed to stay within 5 starts per 30 seconds), `'scan-failed'`.</Errors>
+
+```ts
+const stop = startScan({
+  services: ['180d'],
+  onFound: ({ device, rssi }) => console.log(device.id, rssi),
+});
+```
+
+</ApiBox>
+
+<ApiBox id="getdevice" name="getDevice(id)" android ios>
+
+The device with this id, without scanning. The same id gives the same `Device`
+while the app holds it or it has a connection, subscriptions or listeners;
+otherwise it may be collected, and the next call creates a new object with the
+same id. Existence is not checked: on iOS `connect()` rejects with
+`'not-found'` for an unknown device, and on Android it scans for it first.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Android: the MAC address. iOS: the UUID the system assigned to the device on this phone. |
+
+<Returns>[`Device`](#device)</Returns>
+
+</ApiBox>
+
+<ApiBox id="androidgetbondeddevices" name="android.getBondedDevices()" android>
+
+The devices bonded (paired) with the phone, LE and dual-mode.
+
+<Returns>`Promise<Device[]>`</Returns>
+
+</ApiBox>
+
+<ApiBox id="androidgetconnecteddevices" name="android.getConnectedDevices()" android>
+
+The LE devices connected to the phone by any app; call `connect()` to use one
+from this app.
+
+<Returns>`Promise<Device[]>`</Returns>
+
+</ApiBox>
+
+<ApiBox id="iosgetconnecteddevices" name="ios.getConnectedDevices(services)" ios>
+
+The devices connected to the phone by any app that offer at least one of
+`services`; call `connect()` to use one from this app.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `services` | `string[]` | Service UUIDs; iOS requires at least one. |
+
+<Returns>`Promise<Device[]>`</Returns>
+
+</ApiBox>
+
+## Device \{#device}
+
+A peripheral, from a [`ScanResult`](#scanresult) or [`getDevice()`](#getdevice).
+
+<ApiBox id="device-properties" name="Properties" android ios>
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Android: the MAC address. iOS: a UUID assigned per phone. |
+| `name` | `string \| undefined` | The last known name, from an advertisement or the system's cache; scan results update it before `onFound`. |
+| `state` | [`ConnectionState`](#connectionstate) | The connection state. |
+| `mtu` | `number` | The ATT MTU of the connection; `23` while disconnected. |
+| `services` | [`Service[]`](#service) | The services discovered by the last `connect()`, updated when the device changes them while connected; empty while disconnected, and after a failed rediscovery until `refreshCache()` or a reconnect. |
+| `android` | `object \| undefined` | Android-only members; see [Device, Android](#device-android). |
+| `ios` | `object \| undefined` | iOS-only members; see [Device, iOS](#device-ios). |
+
+</ApiBox>
+
+<ApiBox id="deviceconnect" name="device.connect(options)" android ios>
+
+Connects, sets the connection priority and negotiates the MTU (Android), and
+discovers services, characteristics and descriptors before resolving. Resolves
+at once when already connected; while one is pending, returns the same promise.
+While the connection is ending, it connects again once it has ended; after
+`disconnect()` cancelled a pending connect, it starts a new one.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `options`<Optional /> | [`ConnectOptions`](#connectoptions) | Timeout, discovery and platform options. |
+
+<Returns>`Promise<void>`</Returns>
+
+<Errors>`'timeout'`, `'cancelled'` (by `disconnect()`), `'connection-failed'` (system status in `nativeCode`), `'not-found'` (iOS: an id the system does not know), `'bluetooth-off'`, `'unauthorized'`.</Errors>
+
+```ts
+await device.connect({ timeout: 5_000, android: { priority: 'high' } });
+```
+
+</ApiBox>
+
+<ApiBox id="devicedisconnect" name="device.disconnect()" android ios>
+
+Disconnects, or cancels a pending `connect()`, and resolves once the system
+confirms. Pending operations reject with `'disconnected'` and subscriptions
+end.
+
+<Returns>`Promise<void>`</Returns>
+
+</ApiBox>
+
+<ApiBox id="deviceread" name="device.read(characteristic, options)" android ios>
+
+Reads a characteristic's value, which its subscribers also receive.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `characteristic` | `string` | The characteristic UUID. |
+| `options`<Optional /> | [`CharacteristicOptions`](#characteristicoptions) | `service`, `timeout`. |
+
+<Returns>`Promise<Uint8Array>`</Returns>
+
+<Errors>`'not-connected'`, `'not-found'`, `'ambiguous'`, `'not-permitted'`, `'gatt'`, `'timeout'`, `'disconnected'`.</Errors>
+
+</ApiBox>
+
+<ApiBox id="devicewrite" name="device.write(characteristic, value, options)" android ios>
+
+Writes a characteristic, resolving when the device acknowledges or, without
+response, when the system has accepted the packet.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `characteristic` | `string` | The characteristic UUID. |
+| `value` | `Uint8Array` | At most [`maxWriteLength()`](#devicemaxwritelength) bytes. |
+| `options`<Optional /> | [`WriteOptions`](#writeoptions) | `withoutResponse`, `service`, `timeout`. |
+
+<Returns>`Promise<void>`</Returns>
+
+<Errors>`'not-connected'`, `'not-found'`, `'ambiguous'`, `'not-permitted'`, `'invalid-argument'`, `'gatt'`, `'timeout'`, `'disconnected'`.</Errors>
+
+```ts
+await device.write('2a39', new Uint8Array([0x01]), { withoutResponse: true });
+```
+
+</ApiBox>
+
+<ApiBox id="devicereaddescriptor" name="device.readDescriptor(characteristic, descriptor, options)" android ios>
+
+Reads a descriptor of a characteristic.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `characteristic` | `string` | The characteristic UUID. |
+| `descriptor` | `string` | The descriptor UUID, such as `'2901'`. |
+| `options`<Optional /> | [`CharacteristicOptions`](#characteristicoptions) | `service`, `timeout`. |
+
+<Returns>`Promise<Uint8Array>`</Returns>
+
+</ApiBox>
+
+<ApiBox id="devicewritedescriptor" name="device.writeDescriptor(characteristic, descriptor, value, options)" android ios>
+
+Writes a descriptor. Writing `'2902'` rejects with `'not-permitted'`; use
+[`subscribe()`](#devicesubscribe).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `characteristic` | `string` | The characteristic UUID. |
+| `descriptor` | `string` | The descriptor UUID. |
+| `value` | `Uint8Array` | The value to write. |
+| `options`<Optional /> | [`CharacteristicOptions`](#characteristicoptions) | `service`, `timeout`. |
+
+<Returns>`Promise<void>`</Returns>
+
+</ApiBox>
+
+<ApiBox id="devicemaxwritelength" name="device.maxWriteLength(options)" android ios>
+
+The largest value one write can carry on the current connection; `0` while
+disconnected.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `options`<Optional /> | `{ withoutResponse?: boolean }` | The kind of write. |
+
+<Returns>`number`: `512` with response. Without response, the MTU minus 3, at most 512 (the longest attribute value), on Android and `maximumWriteValueLength(for: .withoutResponse)` on iOS.</Returns>
+
+</ApiBox>
+
+<ApiBox id="devicereadrssi" name="device.readRssi(options)" android ios>
+
+Reads the signal strength of the connection.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `options`<Optional /> | [`TimeoutOptions`](#timeoutoptions) | |
+
+<Returns>`Promise<number>`, in dBm.</Returns>
+
+</ApiBox>
+
+<ApiBox id="deviceopenl2capchannel" name="device.openL2capChannel(psm, options)" android="10+ (API 29)" ios="11+">
+
+Opens an L2CAP connection-oriented channel on a connected device. See
+[L2CAP channels](./l2cap.mdx).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `psm` | `number` | The channel's PSM, as the device publishes it. |
+| `options`<Optional /> | [`L2capChannelOptions`](#l2capchanneloptions) | Timeout and, on Android, link security. |
+
+<Returns>`Promise<L2capChannel>`. See [`L2capChannel`](#l2capchannel).</Returns>
+
+<Errors>`'invalid-argument'` (the PSM is not 1–65535), `'unsupported'` below Android 10, `'not-connected'`, `'connection-failed'` (the channel did not open), `'timeout'`, `'disconnected'` (the link ended while opening).</Errors>
+
+</ApiBox>
+
+<ApiBox id="devicesubscribe" name="device.subscribe(characteristic, listener, options)" android ios>
+
+Listens to notifications or indications and returns `remove` at once.
+Notifications are enabled in the background; operations called after
+`subscribe()` reach the device once they are on.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `characteristic` | `string` | The characteristic UUID. |
+| `listener` | `(value: Uint8Array) => void` | Called with each value, in order. |
+| `options`<Optional /> | [`SubscribeOptions`](#subscribeoptions) | `mode`, `onError`, `service`, `timeout`. |
+
+<Returns>`() => void`, which removes the subscription at any point.</Returns>
+
+<Throws>`'not-connected'`, `'not-found'`, `'ambiguous'`, `'not-permitted'`. Failures to enable notifications go to `options.onError`.</Throws>
+
+Notifications of a characteristic are enabled once for all its subscriptions:
+a second `subscribe()` while the first is active shares its enable, so its own
+`mode` and `timeout` do not apply.
+
+```ts
+const remove = device.subscribe('2a37', (value) => console.log(value));
+```
+
+</ApiBox>
+
+<ApiBox id="deviceondisconnect" name="device.onDisconnect(listener)" android ios>
+
+Calls `listener` after each disconnect of an established connection, across
+reconnects.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `listener` | `(error?: BleError) => void` | `error` is `undefined` after `disconnect()`; otherwise `'disconnected'`, `'timeout'` or `'bluetooth-off'`, with the system status in `nativeCode`. |
+
+<Returns>`() => void`</Returns>
+
+</ApiBox>
+
+<ApiBox id="deviceonstatechange" name="device.onStateChange(listener)" android ios>
+
+Calls `listener` on every change of `device.state`.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `listener` | `(state: ConnectionState) => void` | |
+
+<Returns>`() => void`</Returns>
+
+</ApiBox>
+
+## Device, Android \{#device-android}
+
+Members of `device.android`, which is `undefined` on iOS.
+
+<ApiBox id="deviceandroidrequestmtu" name="requestMtu(mtu, options)" android>
+
+Negotiates a new MTU. `connect()` already requests 517 by default.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `mtu` | `number` | From 23 to 517. |
+| `options`<Optional /> | [`TimeoutOptions`](#timeoutoptions) | |
+
+<Returns>`Promise<number>`: the MTU the device accepted.</Returns>
+
+</ApiBox>
+
+<ApiBox id="deviceandroidrequestpriority" name="requestPriority(priority)" android>
+
+Requests a connection interval, resolving once sent, since Android reports no
+result.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `priority` | [`ConnectionPriority`](#connectionpriority) | The connection interval to request. |
+
+<Returns>`Promise<void>`</Returns>
+
+</ApiBox>
+
+<ApiBox id="deviceandroidsetphy" name="setPhy(phy, options)" android="8.0+ (API 26)">
+
+Prefers PHYs for the connection.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `phy.tx`, `phy.rx` (optional) | `('le1m' \| 'le2m' \| 'coded')[]` | `'le2m'` doubles throughput; `'coded'` trades speed for range. |
+| `phy.codedOption`<Optional /> | `'none' \| 's2' \| 's8'` | Coded PHY at half speed (`'s2'`) or an eighth (`'s8'`, longest range). |
+| `options`<Optional /> | [`TimeoutOptions`](#timeoutoptions) | |
+
+<Returns>`Promise<PhyPair>`: the PHYs in use. See [`PhyPair`](#phypair).</Returns>
+
+</ApiBox>
+
+<ApiBox id="deviceandroidreadphy" name="readPhy(options)" android="8.0+ (API 26)">
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `options`<Optional /> | [`TimeoutOptions`](#timeoutoptions) | |
+
+<Returns>`Promise<PhyPair>`: the PHYs in use.</Returns>
+
+</ApiBox>
+
+<ApiBox id="deviceandroidbond" name="bond()" android>
+
+Bonds with the device, showing the system pairing dialog when the device asks
+for it; resolves at once when already bonded.
+
+<Returns>`Promise<void>`</Returns>
+
+<Errors>`'bond-failed'` when pairing fails or the user declines.</Errors>
+
+</ApiBox>
+
+<ApiBox id="deviceandroidunbond" name="unbond()" android>
+
+Removes the bond through a hidden system API; rejects with `'unsupported'`
+where the phone blocks it.
+
+<Returns>`Promise<void>`</Returns>
+
+</ApiBox>
+
+<ApiBox id="deviceandroidbondstate" name="bondState" android>
+
+The bond as of the system's last bond broadcast, read without asking the system.
+
+<Type>[`BondState`](#bondstate)</Type>
+
+</ApiBox>
+
+<ApiBox id="deviceandroidrefreshcache" name="refreshCache(options)" android>
+
+Clears the system's cached services of this device and rediscovers them, for
+example after a firmware update. Uses a hidden system API; rejects with
+`'unsupported'` where the phone blocks it. Subscriptions carry over as when the
+device [changes its services](./connecting.mdx#when-the-device-changes-its-services).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `options`<Optional /> | [`TimeoutOptions`](#timeoutoptions) | |
+
+<Returns>`Promise<void>`</Returns>
+
+</ApiBox>
+
+## Device, iOS \{#device-ios}
+
+Members of `device.ios`, which is `undefined` on Android.
+
+<ApiBox id="deviceiosancsauthorized" name="ancsAuthorized" ios="13+">
+
+Whether the user allowed this device to receive notifications through Apple
+Notification Center Service.
+
+<Type>`boolean`</Type>
+
+</ApiBox>
+
+## Bluetooth state
+
+<ApiBox id="onbluetoothstatechange" name="onBluetoothStateChange(listener)" android ios>
+
+Calls `listener` on every change of the Bluetooth state, not with the current
+one; read that with [`getBluetoothState()`](#getbluetoothstate).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `listener` | `(state: BluetoothState) => void` | |
+
+<Returns>`() => void`</Returns>
+
+</ApiBox>
+
+<ApiBox id="usebluetoothstate" name="useBluetoothState()" android ios>
+
+The Bluetooth state as React state; the component re-renders on every change.
+
+<Returns>[`BluetoothState`](#bluetoothstate)</Returns>
+
+</ApiBox>
+
+## Configuration
+
+<ApiBox id="configure" name="configure(options)" android ios>
+
+Changes defaults and logging; each call changes only the options it sets.
+`timeouts`, `logLevel` and `logger` take effect at once; the `ios` options are
+read when the Bluetooth manager is created, at the first call that needs
+Bluetooth, so set them at app start.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `options` | [`ConfigureOptions`](#configureoptions) | |
+
+<Returns>`void`</Returns>
+
+```ts
+configure({ timeouts: { connect: 15_000 }, logLevel: 'debug' });
+```
+
+</ApiBox>
+
+## Types
+
+<ApiBox id="permissionresponse" name="PermissionResponse" android ios>
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `status` | `'granted' \| 'denied' \| 'undetermined'` | `'undetermined'` until the user answers. |
+| `granted` | `boolean` | `status === 'granted'`. |
+| `canAskAgain` | `boolean` | Whether the prompt can still be shown; `false` on Android after "Don't allow" twice or "Don't ask again", on iOS once the user answered. |
+| `expires` | `'never'` | Bluetooth permission does not expire; matches Expo's `PermissionResponse`. |
+
+</ApiBox>
+
+<ApiBox id="bluetoothstate" name="BluetoothState" android ios>
+
+| Value | Meaning |
+| --- | --- |
+| `'unknown'` | Not determined yet. |
+| `'unsupported'` | The device has no Bluetooth LE. |
+| `'unauthorized'` | Permission is not granted. |
+| `'off'` | Bluetooth is off. |
+| `'on'` | Bluetooth is on. |
+| `'turning-on'`, `'turning-off'` | <Platforms android /> The adapter is switching. |
+| `'resetting'` | <Platforms ios /> The system Bluetooth service is restarting. |
+
+</ApiBox>
+
+<ApiBox id="scanoptions" name="ScanOptions" android ios>
+
+| Property | Type | Default | Description |
+| --- | --- | --- | --- |
+| `services` | `string[]` | all devices | Only devices advertising one of these services, filtered by the system; required for background scanning. |
+| `filters` | [`ScanFilter[]`](#scanfilter) | none | Further conditions; a result must match one. |
+| `allowDuplicates` | `boolean` | `false` | `true` reports every advertisement instead of once per device. No effect in the background on iOS. |
+| `minRssi` | `number` | none | Only advertisements at least this strong, in dBm, are reported to `onFound` or keep a device present for `onLost`. |
+| `lostAfter` | `number` | `10000` | With `onLost`: a device is lost when nothing that counts arrived for this long, in ms. |
+| `onFound` | `(result: ScanResult) => void` |  | A device is heard: once per scan, every advertisement with `allowDuplicates`, and again after each `onLost`. |
+| `onLost` | `(device: Device) => void` |  | A device left range. Passing it tracks presence, which on iOS makes the system report every advertisement. Stopping the scan does not call it. |
+| `onError` | `(error: BleError) => void` |  | The scan failed and has stopped. |
+| `android` | [`ScanOptionsAndroid`](#scanoptionsandroid) |  | <Platforms android /> Native scan settings. |
+| `ios` | [`ScanOptionsIos`](#scanoptionsios) |  | <Platforms ios /> Native scan options. |
+
+</ApiBox>
+
+<ApiBox id="scanoptionsandroid" name="ScanOptionsAndroid" android>
+
+| Property | Type | Default | Description |
+| --- | --- | --- | --- |
+| `scanMode` | `'auto' \| 'opportunistic' \| 'low-power' \| 'balanced' \| 'low-latency'` | `'auto'` | How often the radio listens; `'auto'` is `'low-latency'` in the foreground and `'low-power'` in the background, `'opportunistic'` only gets other apps' results. |
+| `reportDelay` | `number` | `0` | Above `0`, the chip batches results and reports every `reportDelay` ms. |
+| `legacy` | `boolean` | `true` | `false` also scans Bluetooth 5 extended advertisements (API 26+). |
+| `phy` | `'le1m' \| 'coded' \| 'all'` | `'le1m'` | The PHY to scan on; `'coded'` is Bluetooth 5 long range (API 26+, with `legacy: false`). |
+
+</ApiBox>
+
+<ApiBox id="scanoptionsios" name="ScanOptionsIos" ios>
+
+| Property | Type | Default | Description |
+| --- | --- | --- | --- |
+| `solicitedServices` | `string[]` | none | Also report devices soliciting one of these services. |
+
+</ApiBox>
+
+<ApiBox id="scanfilter" name="ScanFilter" android ios>
+
+All properties of one filter must match.
+
+| Property | Type | Matches when |
+| --- | --- | --- |
+| `name` | `string` | The device's name equals it: the advertised name, or the system's cached one. |
+| `namePrefix` | `string` | The device's name starts with it. |
+| `manufacturerData` | `{ companyId: number; data?: Uint8Array; mask?: Uint8Array }` | The manufacturer data has company id `companyId` and, when `data` is set, the bytes after the company id start with `data`, comparing only the bits `mask` sets. |
+| `serviceData` | `{ uuid: string; data?: Uint8Array; mask?: Uint8Array }` | The service data of `uuid` exists and, when `data` is set, starts with `data`, compared through `mask`. |
+
+</ApiBox>
+
+<ApiBox id="scanresult" name="ScanResult" android ios>
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `device` | [`Device`](#device) | The device; the same object for the same id, as [`getDevice()`](#getdevice) gives. |
+| `rssi` | `number` | Signal strength in dBm. |
+| `manufacturerData` | `Uint8Array` | Manufacturer data, starting with the 2-byte company id (little-endian). |
+| `serviceData` | `Record<string, Uint8Array>` | Data per service UUID. |
+| `serviceUuids` | `string[]` | Advertised services. |
+| `txPowerLevel` | `number` | Advertised transmit power in dBm. |
+| `isConnectable` | `boolean` | <Platforms android="8.0+" ios /> Whether the device accepts connections. |
+| `android.manufacturerEntries` | `Uint8Array[]` | <Platforms android /> Every manufacturer data entry, each starting with its company id; `manufacturerData` is the first, and a `manufacturerData` filter matches any. |
+| `android.scanRecord` | `Uint8Array` | <Platforms android /> The raw advertisement and scan response. |
+| `android.isLegacy` | `boolean` | <Platforms android="8.0+" /> Legacy or extended advertisement. |
+| `android.primaryPhy` | `'le1m' \| 'coded'` | <Platforms android="8.0+" /> The PHY of the primary advertisement. |
+| `android.secondaryPhy` | `'le1m' \| 'le2m' \| 'coded'` | <Platforms android="8.0+" /> The PHY of the extended advertisement; absent for a legacy one. |
+| `android.advertisingSid` | `number` | <Platforms android="8.0+" /> Advertising set id of an extended advertisement. |
+| `android.periodicAdvertisingInterval` | `number` | <Platforms android="8.0+" /> In units of 1.25 ms. |
+| `android.timestampNanos` | `number` | <Platforms android /> Time of reception since boot. |
+| `ios.overflowServiceUuids` | `string[]` | <Platforms ios /> Services advertised in the overflow area. |
+| `ios.solicitedServiceUuids` | `string[]` | <Platforms ios /> Services the device solicits. |
+
+</ApiBox>
+
+<ApiBox id="connectoptions" name="ConnectOptions" android ios>
+
+| Property | Type | Default | Description |
+| --- | --- | --- | --- |
+| `timeout` | `number` | `10000` | In ms; `0` waits forever. |
+| `services` | `string[]` | all | Services to discover; iOS discovers only these, Android discovers all and keeps these. |
+| `android.autoConnect` | `boolean` | `false` | <Platforms android /> `true` connects whenever the device appears, slowly and without a time limit. |
+| `android.transport` | `'auto' \| 'le' \| 'bredr'` | `'le'` | <Platforms android /> Transport for dual-mode devices. |
+| `android.phy` | `('le1m' \| 'le2m' \| 'coded')[]` | `['le1m']` | <Platforms android="8.0+" /> Preferred PHYs. |
+| `android.mtu` | `number \| false` | `517` | <Platforms android /> MTU to request; `false` keeps 23. |
+| `android.priority` | [`ConnectionPriority`](#connectionpriority) | `'balanced'` | <Platforms android /> Connection interval to request. |
+| `ios.notifyOnConnection` | `boolean` | `false` | <Platforms ios /> System alert on connection while suspended. |
+| `ios.notifyOnDisconnection` | `boolean` | `false` | <Platforms ios /> System alert on disconnection while suspended. |
+| `ios.notifyOnNotification` | `boolean` | `false` | <Platforms ios /> System alert for each notification while suspended. |
+| `ios.enableTransportBridging` | `boolean` | `false` | <Platforms ios="13+" /> Also connects classic Bluetooth on dual-mode devices. |
+| `ios.requiresAncs` | `boolean` | `false` | <Platforms ios="13+" /> Requires Apple Notification Center Service. |
+| `ios.startDelay` | `number` | `0` | <Platforms ios="13+" /> Delays the connection, in seconds. |
+
+</ApiBox>
+
+<ApiBox id="connectionpriority" name="ConnectionPriority" android>
+
+| Value | Connection interval |
+| --- | --- |
+| `'balanced'` | About 30–50 ms. |
+| `'high'` | About 11–15 ms: faster transfers, more power. |
+| `'low-power'` | About 100–125 ms. |
+
+</ApiBox>
+
+<ApiBox id="connectionstate" name="ConnectionState" android ios>
+
+`'disconnected' | 'connecting' | 'connected' | 'disconnecting'`
+
+</ApiBox>
+
+<ApiBox id="service" name="Service`, `Characteristic`, `Descriptor" android ios>
+
+```ts
+type Service = { uuid: string; isPrimary: boolean; characteristics: Characteristic[] };
+
+type Characteristic = {
+  uuid: string;
+  service: string;
+  properties: {
+    broadcast: boolean;
+    read: boolean;
+    writeWithoutResponse: boolean;
+    write: boolean;
+    notify: boolean;
+    indicate: boolean;
+    authenticatedSignedWrites: boolean;
+    extendedProperties: boolean;
+  };
+  descriptors: Descriptor[];
+};
+
+type Descriptor = { uuid: string; characteristic: string };
+```
+
+</ApiBox>
+
+<ApiBox id="timeoutoptions" name="TimeoutOptions" android ios>
+
+| Property | Type | Default | Description |
+| --- | --- | --- | --- |
+| `timeout` | `number` | `30000` | In ms; `0` waits forever. |
+
+</ApiBox>
+
+<ApiBox id="characteristicoptions" name="CharacteristicOptions" android ios>
+
+| Property | Type | Default | Description |
+| --- | --- | --- | --- |
+| `service` | `string` | | The service, when the characteristic UUID exists in several. |
+| `timeout` | `number` | `30000` | In ms, from when the operation starts; a timed-out operation rejects, the next waits for its late answer, and a second timeout disconnects. |
+
+</ApiBox>
+
+<ApiBox id="writeoptions" name="WriteOptions" android ios>
+
+[`CharacteristicOptions`](#characteristicoptions), and:
+
+| Property | Type | Default | Description |
+| --- | --- | --- | --- |
+| `withoutResponse` | `boolean` | `false` | Writes without the device's acknowledgement. |
+
+</ApiBox>
+
+<ApiBox id="subscribeoptions" name="SubscribeOptions" android ios>
+
+| Property | Type | Default | Description |
+| --- | --- | --- | --- |
+| `mode` | `'auto' \| 'notify' \| 'indicate'` | `'auto'` | <Platforms android /> `'auto'` prefers notifications; iOS always chooses, preferring notifications. |
+| `onError` | `(error: BleError) => void` |  | Enabling notifications failed; the subscription has ended. |
+| `service` | `string` |  | As in [`CharacteristicOptions`](#characteristicoptions). |
+| `timeout` | `number` | `30000` | How long the device gets to enable notifications, also when re-enabling them after it changes its services. |
+
+</ApiBox>
+
+<ApiBox id="l2capchanneloptions" name="L2capChannelOptions" android="10+ (API 29)" ios="11+">
+
+| Property | Type | Default | Description |
+| --- | --- | --- | --- |
+| `timeout` | `number` | `30000` | In ms, for the channel to open; `0` waits forever. |
+| `android.secure` | `boolean` | `true` | <Platforms android /> Requires an encrypted, authenticated link. |
+
+</ApiBox>
+
+<ApiBox id="l2capchannel" name="L2capChannel" android="10+ (API 29)" ios="11+">
+
+| Member | Type | Description |
+| --- | --- | --- |
+| `psm` | `number` | The channel's PSM. |
+| `write(value)` | `(value: Uint8Array) => Promise<void>` | Sends `value`, of any length, in call order. |
+| `onData(listener)` | `(listener: (value: Uint8Array) => void) => () => void` | Incoming bytes, in order. The first listener also gets the bytes that arrived before it. |
+| `onClose(listener)` | `(listener: (error?: BleError) => void) => () => void` | Called once when the channel closes; at once if it has closed already. |
+| `close()` | `() => Promise<void>` | Closes the channel. |
+
+</ApiBox>
+
+<ApiBox id="phypair" name="PhyPair" android>
+
+`{ tx: 'le1m' | 'le2m' | 'coded'; rx: 'le1m' | 'le2m' | 'coded' }`
+
+</ApiBox>
+
+<ApiBox id="bondstate" name="BondState" android>
+
+`'none' | 'bonding' | 'bonded'`
+
+</ApiBox>
+
+<ApiBox id="configureoptions" name="ConfigureOptions" android ios>
+
+| Property | Type | Default | Description |
+| --- | --- | --- | --- |
+| `timeouts.connect` | `number` | `10000` | Default `timeout` of `connect()`. |
+| `timeouts.operation` | `number` | `30000` | Default `timeout` of other operations. |
+| `logLevel` | [`LogLevel`](#loglevel) `\| 'off'` | `'warn'` | `'debug'` logs every native call and callback. |
+| `logger` | `(entry: LogEntry) => void` | `console` | Receives each [`LogEntry`](#logentry). |
+| `ios.showPowerAlert` | `boolean` | `false` | <Platforms ios /> Lets iOS show its alert when Bluetooth is off. |
+| `ios.restoreIdentifier` | `string` |  | <Platforms ios /> Turns on state restoration; see [Background](./background.mdx). |
+| `ios.onRestore` | `(state: RestoredState) => void` |  | <Platforms ios /> What iOS restored. |
+
+</ApiBox>
+
+<ApiBox id="loglevel" name="LogLevel" android ios>
+
+`'debug' | 'info' | 'warn' | 'error'`, from most to least detailed.
+
+</ApiBox>
+
+<ApiBox id="logentry" name="LogEntry" android ios>
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `level` | [`LogLevel`](#loglevel) | |
+| `message` | `string` | |
+| `deviceId` | `string` | The device id, when the entry concerns one. |
+| `details` | `Record<string, unknown>` | Details, such as a GATT status. |
+
+</ApiBox>
+
+<ApiBox id="restoredstate" name="RestoredState" ios>
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `connected` | `Device[]` | Connected again, services discovered. |
+| `connecting` | `Device[]` | Devices whose `connect()` was pending when iOS ended the app; the library reruns `connect({ timeout: 0 })`, which resolves when the device comes into range, and `device.connect()` returns that same promise. |
+| `scan` | `{ services: string[] }` | The scan iOS restored, now stopped. |
+
+</ApiBox>
+
+## Errors
+
+<ApiBox id="bleerror" name="BleError" android ios>
+
+Every rejection, `onError` and `onDisconnect` carries a `BleError`.
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `code` | [`BleErrorCode`](#bleerrorcode) | What went wrong; the same on both platforms. |
+| `message` | `string` | A readable description, for logs. |
+| `nativeCode` | `number` | The platform's status, when there is one. |
+| `nativeDomain` | `string` | Where `nativeCode` comes from. Android: `'android.gatt'` (a GATT status), `'android.status'` (a `BluetoothStatusCodes` value when Android 13+ refused to start a write or descriptor write) or `'android.scan'` (a `ScanCallback` error). iOS: the `NSError` domain, usually `'CBErrorDomain'` or `'CBATTErrorDomain'`. |
+
+</ApiBox>
+
+<ApiBox id="isbleerror" name="isBleError(error, code)" android ios>
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `error` | `unknown` | |
+| `code`<Optional /> | `BleErrorCode` | Also require this code. |
+
+<Returns>`error is BleError`</Returns>
+
+```ts
+if (isBleError(error, 'timeout')) retryLater();
+```
+
+</ApiBox>
+
+<ApiBox id="bleerrorcode" name="BleErrorCode" android ios>
+
+| Code | Meaning |
+| --- | --- |
+| `'unauthorized'` | Bluetooth permission is not granted. |
+| `'bluetooth-off'` | Bluetooth is off, or turned off during the operation. |
+| `'unsupported'` | The phone or OS version lacks the feature. |
+| `'timeout'` | No answer in time; the next operation waits for the late answer, and a second timeout disconnects the device. |
+| `'cancelled'` | `disconnect()` cancelled a pending `connect()`. |
+| `'disconnected'` | The connection ended while the operation was pending. |
+| `'not-connected'` | The operation needs a connection. |
+| `'connection-failed'` | The system could not connect; Android's common GATT status `133` usually passes on retry. |
+| `'not-found'` | Unknown device, service, characteristic or descriptor. |
+| `'ambiguous'` | The characteristic UUID exists in several services; pass `service`. |
+| `'not-permitted'` | The characteristic lacks the property, or the descriptor must not be written directly. |
+| `'invalid-argument'` | A value is too long, or an argument out of range. |
+| `'scan-throttled'` | <Platforms android /> Android refused a scan start as too frequent; rare, since the library delays restarts to stay within 5 starts per 30 seconds. |
+| `'scan-failed'` | The system failed the scan. |
+| `'bond-failed'` | <Platforms android /> Pairing failed or the user declined. |
+| `'gatt'` | The device answered with an ATT error, in `nativeCode`. |
+| `'unknown'` | Anything else; see `message` and `nativeCode`. |
+
+</ApiBox>

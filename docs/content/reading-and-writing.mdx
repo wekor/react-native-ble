@@ -1,0 +1,94 @@
+---
+title: Reading and writing
+---
+
+# Reading and writing
+
+```ts
+const level = await device.read('2a19');
+await device.write('2a39', new Uint8Array([0x01]));
+```
+
+Values are `Uint8Array` in both directions.
+
+## Name a characteristic
+
+Pass the characteristic's UUID and the library finds its service; pass
+`service` only when the UUID exists in more than one service:
+
+```ts
+await device.write('2a39', value, { service: '180d' });
+```
+
+UUIDs can be 16-bit (`'2a39'`), 32-bit or 128-bit, in any case.
+
+## Write with or without response
+
+A write waits for the device's acknowledgement by default; without response it
+is faster and unacknowledged:
+
+```ts
+await device.write('2a39', value, { withoutResponse: true });
+```
+
+Awaiting each write without response is safe at full speed: the library waits
+for the system's flow control, so a loop of writes never drops packets. Values
+are never split; size chunks with
+[`maxWriteLength()`](./api.mdx#devicemaxwritelength):
+
+```ts
+const size = device.maxWriteLength({ withoutResponse: true });
+for (let offset = 0; offset < data.length; offset += size) {
+  await device.write('2a39', data.subarray(offset, offset + size), { withoutResponse: true });
+}
+```
+
+## Descriptors
+
+```ts
+const description = await device.readDescriptor('2a37', '2901');
+await device.writeDescriptor('2a37', '2908', value);
+```
+
+To turn on notifications, use [`subscribe()`](./listening.mdx), not the Client
+Characteristic Configuration descriptor (`'2902'`).
+
+## Order and timeouts
+
+- **Order.** Operations on one device run one at a time, in call order, so
+  calling several without awaiting is safe.
+- **Timeouts.** Each operation rejects with `'timeout'` after 30 seconds by
+  default; set `timeout` per call, or the default with
+  [`configure()`](./api.mdx#configure). The clock starts when the operation
+  starts, not while it waits for earlier ones. A timed-out operation rejects at
+  once, but the next one waits for the device's late answer so it cannot be
+  mistaken for its own; if none comes within a second timeout, the library
+  disconnects.
+- **Writes without response on Android.** Android reports such a write done
+  once buffered, and may buffer far more than the radio sends, so after a long
+  burst the next operation waits for the buffer to drain; give it a `timeout`
+  that covers that, or wait before it. It can also fail with `'gatt'` and
+  `nativeCode` 143 (connection congested) although Android did send it to the
+  device; retry it only if repeating it is harmless, as with most reads.
+
+## Errors
+
+| Code | When |
+| --- | --- |
+| `'not-connected'` | The device is not connected. |
+| `'not-found'` | No discovered service has the characteristic or descriptor. |
+| `'ambiguous'` | Several services have the characteristic and `service` is not set. |
+| `'not-permitted'` | The characteristic lacks the property, such as `read`, or the descriptor is `'2902'`. |
+| `'invalid-argument'` | The value is longer than `maxWriteLength()`. |
+| `'gatt'` | The device refused; `nativeCode` is the ATT error. |
+| `'timeout'`, `'disconnected'` | As described above. |
+
+## Platform differences
+
+| | Android | iOS |
+| --- | --- | --- |
+| Long writes | The system sends values longer than one packet as a long write, up to 512 bytes. | Same as Android. |
+| Max length without response | The MTU minus 3, at most 512. | `maximumWriteValueLength(for: .withoutResponse)`, which follows the negotiated MTU. |
+| System calls | Android 13+ uses the newer GATT calls, which report failures directly; earlier versions use the legacy ones. | CoreBluetooth on every supported version. |
+| Encryption | Most phones pair on their own when a characteristic needs encryption; [`device.android.bond()`](./api.mdx#deviceandroidbond) pairs explicitly. | The system pairs on its own, showing its dialog. |
+| Writing `'2902'` | Refused by the library, which keeps subscriptions in step. | Refused by the library; CoreBluetooth forbids it as well. |

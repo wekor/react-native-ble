@@ -1,0 +1,133 @@
+{
+  "name": "@wekor/react-native-ble",
+  "version": "0.1.0",
+  "description": "Bluetooth Low Energy for React Native.",
+  "main": "./lib/module/index.js",
+  "types": "./lib/typescript/src/index.d.ts",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./lib/typescript/src/index.d.ts",
+      "default": "./lib/module/index.js"
+    },
+    "./plugin": {
+      "types": "./plugin/build/index.d.ts",
+      "default": "./plugin/build/index.js"
+    },
+    "./package.json": "./package.json",
+    "./app.plugin.js": "./app.plugin.js"
+  },
+  "files": [
+    "src",
+    "lib",
+    "android",
+    "ios",
+    "common",
+    "*.podspec",
+    "app.plugin.js",
+    "plugin/build",
+    "!ios/build",
+    "!android/build",
+    "!android/.cxx",
+    "!android/gradle",
+    "!android/gradlew",
+    "!android/gradlew.bat",
+    "!android/local.properties",
+    "!**/__tests__",
+    "!**/__fixtures__",
+    "!**/__mocks__",
+    "!common/test",
+    "!**/.*"
+  ],
+  "scripts": {
+    "example": "bun run --cwd example",
+    "check": "biome check",
+    "fix": "biome check --write",
+    "format": "biome format --write",
+    "clean": "del-cli lib plugin/build",
+    "prepare": "bob build && tsc -p plugin",
+    "typecheck": "tsc && tsc -p tsconfig.test.json && tsc -p example && tsc -p plugin --noEmit",
+    "build:android:prepare": "bun run example expo prebuild --platform android --no-install",
+    "build:android": "./example/android/gradlew --project-dir example/android :wekor_react-native-ble:assembleDebug",
+    "build:ios:prepare": "bun run example expo prebuild --platform ios",
+    "build:ios": "xcodebuild -workspace example/ios/BLEExample.xcworkspace -scheme BLEExample -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build -quiet",
+    "test": "bun test src plugin",
+    "test:cpp": "./common/test/run.sh"
+  },
+  "keywords": [
+    "react-native",
+    "ios",
+    "android",
+    "bluetooth",
+    "ble",
+    "bluetooth-low-energy"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wekor/react-native-ble.git"
+  },
+  "author": "wekor",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/wekor/react-native-ble/issues"
+  },
+  "homepage": "https://github.com/wekor/react-native-ble#readme",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.6.3",
+    "@react-native/babel-preset": "0.88.0",
+    "@types/bun": "^1.4.4",
+    "@types/react": "^19.2.0",
+    "del-cli": "^8.0.1",
+    "expo": "~58.0.19",
+    "react": "19.3.0",
+    "react-native": "0.88.0",
+    "react-native-builder-bob": "^0.44.1",
+    "typescript": "^6.0.3"
+  },
+  "peerDependencies": {
+    "expo": "*",
+    "react": "*",
+    "react-native": ">=0.80.0"
+  },
+  "peerDependenciesMeta": {
+    "expo": {
+      "optional": true
+    }
+  },
+  "workspaces": [
+    "example"
+  ],
+  "packageManager": "bun@1.4.4",
+  "react-native-builder-bob": {
+    "source": "src",
+    "output": "lib",
+    "targets": [
+      [
+        "module",
+        {
+          "esm": true
+        }
+      ],
+      [
+        "typescript",
+        {
+          "project": "tsconfig.build.json"
+        }
+      ]
+    ]
+  },
+  "codegenConfig": {
+    "name": "ReactNativeBleSpec",
+    "type": "modules",
+    "jsSrcsDir": "src",
+    "android": {
+      "javaPackageName": "com.wekor.reactnativeble"
+    }
+  },
+  "patchedDependencies": {
+    "react-native-wifi-reborn@4.13.6": "patches/react-native-wifi-reborn@4.13.6.patch"
+  }
+}

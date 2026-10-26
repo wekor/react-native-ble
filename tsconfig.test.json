@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig",
+  "compilerOptions": { "types": ["bun"] },
+  "include": ["src", "plugin/__tests__"],
+  "exclude": []
+}

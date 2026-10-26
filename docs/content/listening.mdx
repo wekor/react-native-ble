@@ -1,0 +1,84 @@
+---
+title: Listening
+---
+
+# Listening
+
+Every listener takes a callback and returns `remove` at once; call it when done
+(twice is harmless).
+
+```ts
+const remove = device.subscribe('2a37', (value) => console.log(value));
+const offDisconnect = device.onDisconnect((error) => console.log('gone', error?.code));
+
+remove();
+offDisconnect();
+```
+
+| Listener | Reports |
+| --- | --- |
+| [`device.subscribe()`](./api.mdx#devicesubscribe) | Notifications or indications of a characteristic. |
+| [`device.onDisconnect()`](./api.mdx#deviceondisconnect) | The end of each connection, and why. |
+| [`device.onStateChange()`](./api.mdx#deviceonstatechange) | Every connection state change. |
+| [`onBluetoothStateChange()`](./api.mdx#onbluetoothstatechange) | Every Bluetooth state change. |
+| [`useBluetoothState()`](./api.mdx#usebluetoothstate) | The Bluetooth state, as a React hook. |
+
+## Subscribe to a characteristic
+
+`subscribe()` returns at once and enables notifications in the background.
+There is no need to wait: operations run in call order, so a write after
+`subscribe()` reaches the device once notifications are on.
+
+```ts
+const remove = device.subscribe('2a37', (chunk) => received.push(chunk));
+await device.write('2a39', startTransfer);
+
+// When the transfer is done:
+remove();
+```
+
+`remove` works at any point, before, during or after enabling.
+
+### Errors
+
+`subscribe()` throws mistakes visible at once: `'not-connected'`,
+`'not-found'`, `'ambiguous'` and `'not-permitted'`. Failures only the device can
+report, such as a timeout while enabling notifications, end the subscription
+and go to the `onError` option.
+
+```ts
+device.subscribe('2a37', onValue, {
+  onError: (error) => console.warn('notifications failed', error.code),
+});
+```
+
+### Several listeners
+
+Several subscriptions to one characteristic each receive their own copy of
+every value. Notifications are enabled once and disabled when the last
+subscription is removed; a later subscription shares that enable, so its own
+`mode` and `timeout` do not apply. A [`read()`](./api.mdx#deviceread) of the
+characteristic also reaches its subscribers, in order with the notifications
+around it.
+
+## Know when a connection ends
+
+```ts
+device.onDisconnect((error) => {
+  if (!error) return; // disconnect() was called.
+  console.warn(error.code, error.nativeCode);
+  reconnectLater(device);
+});
+```
+
+`error` is `undefined` after `disconnect()`, and otherwise says why. The
+listener stays registered across reconnects and can be added before the first
+`connect()`. On disconnect, subscriptions end without calling `onError`.
+
+## Platform differences
+
+| | Android | iOS |
+| --- | --- | --- |
+| Notify or indicate | `mode` chooses; `'auto'` prefers notifications. | Chosen by the system, preferring notifications; `mode: 'indicate'` on a characteristic that supports both still receives notifications. |
+| Delivery | Values are copied on arrival and delivered in order; Android 13+ reports each notification once, as earlier versions do. | Values are delivered in arrival order. |
+| Disconnect reason | `nativeCode` is the GATT status, such as `8` (connection timeout) or `19` (terminated by the peripheral). | `nativeCode` is the `CBError` code, with `nativeDomain` `'CBErrorDomain'`. |

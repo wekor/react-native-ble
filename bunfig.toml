@@ -1,0 +1,4 @@
+[install]
+# Hoist dependencies into a flat node_modules, the layout React Native tooling
+# (Metro, CocoaPods autolinking, codegen) expects.
+linker = "hoisted"

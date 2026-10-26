@@ -1,0 +1,65 @@
+buildscript {
+  ext.ReactNativeBle = [
+    minSdkVersion: 24,
+    compileSdkVersion: 36,
+    targetSdkVersion: 36
+  ]
+
+  ext.getExtOrDefault = { prop ->
+    if (rootProject.ext.has(prop)) {
+      return rootProject.ext.get(prop)
+    }
+
+    return ReactNativeBle[prop]
+  }
+}
+
+apply plugin: "com.android.library"
+// AGP 9 registers the `kotlin` extension itself; applying the plugin on top of it fails.
+if (project.extensions.findByName("kotlin") == null) {
+  apply plugin: "kotlin-android"
+}
+
+apply plugin: "com.facebook.react"
+
+android {
+  namespace "com.wekor.reactnativeble"
+
+  compileSdkVersion getExtOrDefault("compileSdkVersion")
+
+  defaultConfig {
+    minSdkVersion getExtOrDefault("minSdkVersion")
+    targetSdkVersion getExtOrDefault("targetSdkVersion")
+    consumerProguardFiles "proguard-rules.pro"
+
+    externalNativeBuild {
+      cmake {
+        arguments "-DANDROID_STL=c++_shared"
+      }
+    }
+  }
+
+  buildFeatures {
+    prefab true
+  }
+
+  externalNativeBuild {
+    cmake {
+      path "src/main/jni/CMakeLists.txt"
+    }
+  }
+
+  packaging {
+    // Provided by React Native at runtime.
+    jniLibs.excludes += [
+      "**/libc++_shared.so",
+      "**/libfbjni.so",
+      "**/libjsi.so",
+      "**/libreactnative.so",
+    ]
+  }
+}
+
+dependencies {
+  implementation "com.facebook.react:react-android"
+}

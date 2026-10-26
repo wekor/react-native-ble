@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "BLE Example",
+    "slug": "react-native-ble-example",
+    "scheme": "bleexample",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.wekor.ble.example",
+      "infoPlist": {
+        "NSLocalNetworkUsageDescription": "Connects to the development server."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "package": "com.wekor.ble.example"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "../app.plugin.js",
+        {
+          "bluetoothPermission": "Allow $(PRODUCT_NAME) to connect to Bluetooth devices",
+          "backgroundCentral": true
+        }
+      ],
+      "expo-router"
+    ]
+  }
+}

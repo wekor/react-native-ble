@@ -1,0 +1,78 @@
+---
+title: Permissions
+---
+
+# Permissions
+
+Scanning and connecting need Bluetooth permission and Bluetooth on. The library
+never prompts on its own; without permission they fail with `'unauthorized'`,
+so the app decides when the prompt appears.
+
+## Request permission
+
+[`requestPermission()`](./api.mdx#requestpermission) prompts if the user has
+not answered yet and resolves with an Expo-style
+[`PermissionResponse`](./api.mdx#permissionresponse):
+
+```ts
+import { Linking } from 'react-native';
+import { requestPermission } from '@wekor/react-native-ble';
+
+const { granted, canAskAgain } = await requestPermission();
+
+if (!granted) {
+  if (canAskAgain) showWhyBluetoothIsNeeded();
+  else Linking.openSettings(); // The system will not prompt again.
+}
+```
+
+[`getPermission()`](./api.mdx#getpermission) checks without prompting, for
+example on launch. In a component,
+[`useBluetoothPermission()`](./api.mdx#usebluetoothpermission) keeps the
+response in state:
+
+```tsx
+import { useBluetoothPermission } from '@wekor/react-native-ble';
+
+export function BluetoothGate({ children }: { children: React.ReactNode }) {
+  const [permission, requestPermission] = useBluetoothPermission();
+
+  if (!permission) return null;
+  if (!permission.granted) return <Button title="Allow Bluetooth" onPress={requestPermission} />;
+  return children;
+}
+```
+
+## Check that Bluetooth is on
+
+[`getBluetoothState()`](./api.mdx#getbluetoothstate) returns the
+[`BluetoothState`](./api.mdx#bluetoothstate) synchronously, and
+[`useBluetoothState()`](./api.mdx#usebluetoothstate) re-renders on every
+change:
+
+```tsx
+import { android, useBluetoothState } from '@wekor/react-native-ble';
+
+const state = useBluetoothState();
+
+if (state === 'off') {
+  return android ? (
+    <Button title="Turn on Bluetooth" onPress={() => android.requestEnable()} />
+  ) : (
+    <Text>Turn on Bluetooth in Control Center.</Text>
+  );
+}
+```
+
+Right after launch the state can briefly be `'unknown'`; methods that need
+Bluetooth wait for it to settle.
+
+## Platform differences
+
+| | Android | iOS |
+| --- | --- | --- |
+| Permissions requested | `BLUETOOTH_SCAN` and `BLUETOOTH_CONNECT` on Android 12 and later; `ACCESS_FINE_LOCATION` on Android 11 and earlier. `granted` only when all are granted. | Bluetooth authorization (`CBManager.authorization`). The prompt shows the text of `NSBluetoothAlwaysUsageDescription`. |
+| `canAskAgain` | `false` once the user chose "Don't allow" twice, or "Don't ask again". | `false` once the user answered the prompt. |
+| Turning Bluetooth on | [`android.requestEnable()`](./api.mdx#androidrequestenable) shows the system dialog from inside the app. | No API; ask the user to turn it on in Control Center or Settings. |
+| Extra states | `'turning-on'` and `'turning-off'` while the adapter switches. | `'resetting'` while the system Bluetooth service restarts. |
+| Reading without prompting | `getPermission()` and `getBluetoothState()` never prompt. | `getPermission()` and `getBluetoothState()` never prompt; the Bluetooth manager, whose creation prompts, is created only when needed. |
